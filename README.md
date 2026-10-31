@@ -1,111 +1,113 @@
-# E-Commerce REST API
+# E-Commerce Backend API
 
-A production-grade Node.js REST API built for an e-commerce platform using Express, MongoDB (Mongoose), and JWT authentication.
+REST API for an e-commerce platform built with Node.js, Express, MongoDB, and JWT authentication.
 
-## Architecture
+## Features
 
-- **Function-based design**: Clean, modular functions throughout all layers (no classes).
-- **Separation of concerns**: Route → Middleware → Controller → Service → Repository → Model → MongoDB.
-- **Authentication & RBAC**: JWT-based auth with bcrypt password hashing. Role-based access control (`admin`, `customer`) with fresh database re-verification on each request.
-- **Hierarchical Categories**: Self-referencing category model supporting arbitrary nesting depth, ancestor cycle detection, sibling slug uniqueness, restrict-delete policy, and single-query tree retrieval.
-- **Product Management**: SKU uniqueness, dynamic effective price calculation (`salePrice` vs `price`), recursive multi-level category filtering (all descendant products included), regex-escaped search, price filtering, sorting, and pagination.
-- **Transactional Orders**: Multi-document MongoDB transactions for atomic stock reservation and point-in-time product snapshotting. Order cancellation restores reserved stock in a transaction.
-- **Security & Logging**: Helmet headers, CORS, Pino structured logging with credential redaction, centralized error handling, and general + auth-specific rate limiting.
-
----
-
-## Tech Stack
-
-- **Runtime**: Node.js (ES Modules)
-- **Framework**: Express.js
-- **Database**: MongoDB with Mongoose
-- **Validation**: Zod
-- **Security**: Helmet, express-rate-limit, bcryptjs, jsonwebtoken
-- **Logging**: Pino, pino-http
+- **Authentication & RBAC**: JWT auth with bcrypt password hashing. Roles for `admin` and `customer` with immediate status verification on each request.
+- **Hierarchical Categories**: Self-referencing Mongoose model supporting unlimited nesting depth, cycle detection, slug uniqueness among siblings, and single-query tree retrieval.
+- **Product Catalog**: SKU uniqueness, dynamic effective pricing (`salePrice` vs `price`), recursive category filtering (matching subcategory items), text search, price filters, and pagination.
+- **Orders & Inventory**: Multi-document MongoDB transactions for checkout with atomic stock decrementing (`$inc`). Order cancellation automatically restores stock.
+- **Security & Reliability**: Helmet headers, CORS, rate limiting, Pino request logging, and centralized error handling with Zod input validation.
+- **Documentation**: Interactive OpenAPI 3.0 spec at `/api/v1/docs` and ready-to-import `postman_collection.json`.
 
 ---
 
-## Quick Start
+## Getting Started
 
-### 1. Install dependencies
+### Prerequisites
+
+- Node.js >= 18
+- MongoDB >= 6.0 (replica set required for transactions) or Docker
+
+### Installation
+
+1. Clone repository and install dependencies:
 ```bash
 npm install
 ```
 
-### 2. Configure Environment Variables
-Copy `.env.example` to `.env`:
+2. Copy environment file:
 ```bash
 cp .env.example .env
 ```
 
-| Variable | Description | Default |
-|---|---|---|
-| `PORT` | Application listener port | `5000` |
-| `NODE_ENV` | Environment (`development`, `production`, `test`) | `development` |
-| `MONGODB_URI` | MongoDB connection string | `mongodb://127.0.0.1:27017/ecommerce` |
-| `JWT_SECRET` | Secret key for signing tokens | (required, min 32 chars in production) |
-| `JWT_EXPIRES_IN` | Token lifespan | `15m` |
-| `CLIENT_URL` | Allowed CORS origin | `http://localhost:3000` |
-| `ADMIN_EMAIL` | Initial admin email | `admin@ecommerce.example.com` |
-| `ADMIN_PASSWORD` | Initial admin password | `AdminPassword123!` |
+3. Configure variables in `.env`:
+```env
+PORT=5000
+MONGODB_URI=mongodb://127.0.0.1:27017/ecommerce
+JWT_SECRET=your_super_secret_jwt_key_at_least_32_characters
+JWT_EXPIRES_IN=15m
+CLIENT_URL=http://localhost:3000
+ADMIN_EMAIL=admin@ecommerce.example.com
+ADMIN_PASSWORD=AdminPassword123!
+```
 
-*Note: In development, if local MongoDB is not running, the application automatically initializes an in-memory replica set with full transaction support.*
+*Note: In development, if a local MongoDB instance is not detected, the server automatically starts an in-memory replica set with full transaction support.*
 
-### 3. Run the Application
+4. Start the server:
 ```bash
-# Start development server
+# Development mode
 npm run dev
 
-# Or start directly
-node src/server.js
+# Production
+npm start
 
-# Optional: Seed initial administrator explicitly
+# Seed default admin user (optional)
 npm run seed:admin
 ```
 
 ---
 
-## API Endpoints
+## Docker Setup
+
+To run the API along with a MongoDB replica set container:
+
+```bash
+docker compose up --build
+```
+
+The API will be available at `http://localhost:5000`.
+
+---
+
+## API Documentation
+
+- **OpenAPI / Swagger Spec**: Available at `http://localhost:3000/api/v1/docs` (or `http://localhost:5000/api/v1/docs` via Docker).
+- **Postman**: Import `postman_collection.json` into Postman. Variables `baseUrl`, `adminToken`, and `customerToken` are configured, and login scripts automatically save tokens to collection variables.
+
+---
+
+## Endpoints Overview
 
 ### Auth
-| Method | Endpoint | Access | Description |
-|---|---|---|---|
-| `POST` | `/api/v1/auth/register` | Public | Register new customer account |
-| `POST` | `/api/v1/auth/login` | Public | Authenticate and obtain JWT token |
+- `POST /api/v1/auth/register` - Register a customer account
+- `POST /api/v1/auth/login` - Authenticate and get JWT
 
 ### Users
-| Method | Endpoint | Access | Description |
-|---|---|---|---|
-| `GET` | `/api/v1/users/me` | Authenticated | Get current user profile |
-| `PATCH` | `/api/v1/users/me` | Authenticated | Update user profile name |
-| `PATCH` | `/api/v1/users/me/password` | Authenticated | Change password |
-| `GET` | `/api/v1/admin/users` | Admin | List all users (paginated, role/active filter) |
-| `GET` | `/api/v1/admin/users/:id` | Admin | Get user details |
-| `PATCH` | `/api/v1/admin/users/:id/status` | Admin | Activate or deactivate user |
+- `GET /api/v1/users/me` - Current user profile
+- `PATCH /api/v1/users/me` - Update profile name
+- `PATCH /api/v1/users/me/password` - Change password
+- `GET /api/v1/admin/users` - Admin: list users (supports pagination, role, isActive filter)
+- `PATCH /api/v1/admin/users/:id/status` - Admin: activate / deactivate user
 
 ### Categories
-| Method | Endpoint | Access | Description |
-|---|---|---|---|
-| `GET` | `/api/v1/categories/tree` | Public | Get full nested category tree |
-| `GET` | `/api/v1/categories` | Public | List categories (supports pagination, parent filter) |
-| `GET` | `/api/v1/categories/:id` | Public | Get category details |
-| `POST` | `/api/v1/categories` | Admin | Create root or subcategory |
-| `PATCH` | `/api/v1/categories/:id` | Admin | Update category (with cycle detection) |
-| `DELETE` | `/api/v1/categories/:id` | Admin | Restrict-delete category |
+- `GET /api/v1/categories/tree` - Get full category hierarchy tree
+- `GET /api/v1/categories` - List categories (paginated, parent filter)
+- `GET /api/v1/categories/:id` - Get category by ID
+- `POST /api/v1/categories` - Admin: create category
+- `PATCH /api/v1/categories/:id` - Admin: update category (with cycle detection)
+- `DELETE /api/v1/categories/:id` - Admin: delete category (restricted if has children/products)
 
 ### Products
-| Method | Endpoint | Access | Description |
-|---|---|---|---|
-| `GET` | `/api/v1/products` | Public | List products (search, category, minPrice, maxPrice, sort, page) |
-| `GET` | `/api/v1/products/:id` | Public | Get product details |
-| `POST` | `/api/v1/products` | Admin | Create product |
-| `PATCH` | `/api/v1/products/:id` | Admin | Update product |
-| `DELETE` | `/api/v1/products/:id` | Admin | Delete or soft-archive product |
+- `GET /api/v1/products` - List products (search, category, minPrice, maxPrice, sortBy, order, page, limit)
+- `GET /api/v1/products/:id` - Get product by ID
+- `POST /api/v1/products` - Admin: create product
+- `PATCH /api/v1/products/:id` - Admin: update product
+- `DELETE /api/v1/products/:id` - Admin: delete or soft-archive product
 
 ### Orders
-| Method | Endpoint | Access | Description |
-|---|---|---|---|
-| `POST` | `/api/v1/orders` | Customer | Place order (transactional stock decrement) |
-| `GET` | `/api/v1/orders` | Customer / Admin | List user orders or all orders |
-| `GET` | `/api/v1/orders/:id` | Customer / Admin | Get order details |
-| `PATCH` | `/api/v1/orders/:id/status` | Customer / Admin | Update status / cancel pending order |
+- `POST /api/v1/orders` - Customer: place order (atomic stock decrement)
+- `GET /api/v1/orders` - List orders (customer views own; admin views all)
+- `GET /api/v1/orders/:id` - Get order by ID
+- `PATCH /api/v1/orders/:id/status` - Update status (pending → confirmed → processing → shipped → delivered / cancelled)

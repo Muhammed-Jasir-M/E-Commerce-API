@@ -1,6 +1,0 @@
-{
-  "name": "E-Commerce REST API",
-  "description": "Production-grade Node.js and Express REST API for e-commerce with JWT authentication, RBAC, hierarchical categories, product management, and order processing.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
