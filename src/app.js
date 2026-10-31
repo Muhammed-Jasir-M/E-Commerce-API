@@ -3,6 +3,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import { pinoHttp } from 'pino-http';
 import rateLimit from 'express-rate-limit';
+import fs from 'node:fs';
 
 import env from './config/env.js';
 import { logger } from './utils/logger.js';
@@ -70,13 +71,20 @@ const healthHandler = (req, res) => {
 app.get('/health', healthHandler);
 app.get('/api/v1/health', healthHandler);
 
+const openapiSpec = JSON.parse(
+  fs.readFileSync(new URL('./docs/openapi.json', import.meta.url), 'utf8')
+);
+
+app.get('/docs', (req, res) => res.json(openapiSpec));
+app.get('/api/v1/docs', (req, res) => res.json(openapiSpec));
+
 app.get('/', (req, res) => {
   res.status(200).json({
     success: true,
     message: 'E-Commerce REST API is operational',
     data: {
       version: '1.0.0',
-      documentation: 'Access API resources under /api/v1',
+      documentation: '/api/v1/docs',
       availableModules: ['/api/v1/auth', '/api/v1/users', '/api/v1/admin/users', '/api/v1/categories', '/api/v1/products', '/api/v1/orders'],
     },
   });

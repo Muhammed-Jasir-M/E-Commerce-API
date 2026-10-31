@@ -1,0 +1,421 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "E-Commerce REST API",
+    "version": "1.0.0",
+    "description": "Production-grade backend REST API for E-Commerce application with JWT auth, multi-level categories, product management, and transactional orders."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000/api/v1",
+      "description": "Local development server"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health check",
+        "responses": {
+          "200": { "description": "API is healthy" }
+        }
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "summary": "Customer registration",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "email", "password"],
+                "properties": {
+                  "name": { "type": "string" },
+                  "email": { "type": "string", "format": "email" },
+                  "password": { "type": "string", "format": "password" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Customer registered successfully" },
+          "409": { "description": "Email already registered" }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "summary": "User login",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": { "type": "string", "format": "email" },
+                  "password": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "JWT issued successfully" },
+          "401": { "description": "Invalid credentials" }
+        }
+      }
+    },
+    "/users/me": {
+      "get": {
+        "summary": "Get authenticated user profile",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Profile data retrieved" }
+        }
+      },
+      "patch": {
+        "summary": "Update user profile",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Profile updated" }
+        }
+      }
+    },
+    "/users/me/password": {
+      "patch": {
+        "summary": "Change password",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["currentPassword", "newPassword"],
+                "properties": {
+                  "currentPassword": { "type": "string" },
+                  "newPassword": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Password updated" }
+        }
+      }
+    },
+    "/admin/users": {
+      "get": {
+        "summary": "Admin: list users",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 10 } },
+          { "name": "role", "in": "query", "schema": { "type": "string", "enum": ["admin", "customer"] } },
+          { "name": "isActive", "in": "query", "schema": { "type": "boolean" } }
+        ],
+        "responses": {
+          "200": { "description": "Paginated users list" }
+        }
+      }
+    },
+    "/admin/users/{id}/status": {
+      "patch": {
+        "summary": "Admin: activate or deactivate user",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["isActive"],
+                "properties": {
+                  "isActive": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "User status updated" }
+        }
+      }
+    },
+    "/categories/tree": {
+      "get": {
+        "summary": "Get full recursive category hierarchy tree",
+        "responses": {
+          "200": { "description": "Complete category tree" }
+        }
+      }
+    },
+    "/categories": {
+      "get": {
+        "summary": "List categories",
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 10 } },
+          { "name": "parent", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Paginated categories list" }
+        }
+      },
+      "post": {
+        "summary": "Admin: create category",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name"],
+                "properties": {
+                  "name": { "type": "string" },
+                  "parent": { "type": "string", "nullable": true },
+                  "isActive": { "type": "boolean", "default": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Category created" }
+        }
+      }
+    },
+    "/categories/{id}": {
+      "patch": {
+        "summary": "Admin: update category with cycle detection",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "parent": { "type": "string", "nullable": true },
+                  "isActive": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Category updated" },
+          "400": { "description": "Circular reference or invalid relationship" }
+        }
+      },
+      "delete": {
+        "summary": "Admin: delete category (restricted if subcategories or products exist)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Category deleted" },
+          "409": { "description": "Cannot delete category with children or products" }
+        }
+      }
+    },
+    "/products": {
+      "get": {
+        "summary": "List products (search, multi-level category, price filter, sort, paginate)",
+        "parameters": [
+          { "name": "search", "in": "query", "schema": { "type": "string" } },
+          { "name": "category", "in": "query", "schema": { "type": "string" }, "description": "Includes all descendant subcategories" },
+          { "name": "minPrice", "in": "query", "schema": { "type": "number" } },
+          { "name": "maxPrice", "in": "query", "schema": { "type": "number" } },
+          { "name": "sortBy", "in": "query", "schema": { "type": "string", "default": "createdAt" } },
+          { "name": "order", "in": "query", "schema": { "type": "string", "enum": ["asc", "desc"], "default": "desc" } },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 10 } }
+        ],
+        "responses": {
+          "200": { "description": "Paginated products list" }
+        }
+      },
+      "post": {
+        "summary": "Admin: create product",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "sku", "price", "stock", "category"],
+                "properties": {
+                  "name": { "type": "string" },
+                  "sku": { "type": "string" },
+                  "description": { "type": "string" },
+                  "price": { "type": "number" },
+                  "salePrice": { "type": "number", "nullable": true },
+                  "stock": { "type": "integer", "minimum": 0 },
+                  "category": { "type": "string" },
+                  "status": { "type": "string", "enum": ["active", "draft", "archived"], "default": "active" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Product created" }
+        }
+      }
+    },
+    "/products/{id}": {
+      "get": {
+        "summary": "Get product by ID",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Product details" }
+        }
+      },
+      "patch": {
+        "summary": "Admin: update product",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Product updated" }
+        }
+      },
+      "delete": {
+        "summary": "Admin: delete or soft-archive product",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Product deleted or archived" }
+        }
+      }
+    },
+    "/orders": {
+      "post": {
+        "summary": "Customer: place order (atomic stock decrement)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["items", "shippingAddress"],
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": ["product", "quantity"],
+                      "properties": {
+                        "product": { "type": "string" },
+                        "quantity": { "type": "integer", "minimum": 1 }
+                      }
+                    }
+                  },
+                  "shippingAddress": {
+                    "type": "object",
+                    "required": ["street", "city", "state", "postalCode", "country"],
+                    "properties": {
+                      "street": { "type": "string" },
+                      "city": { "type": "string" },
+                      "state": { "type": "string" },
+                      "postalCode": { "type": "string" },
+                      "country": { "type": "string" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Order created and stock decremented" },
+          "400": { "description": "Insufficient stock or invalid item" }
+        }
+      },
+      "get": {
+        "summary": "List orders (customer views own; admin views all)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 10 } },
+          { "name": "status", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Paginated orders list" }
+        }
+      }
+    },
+    "/orders/{id}/status": {
+      "patch": {
+        "summary": "Update order status (Admin or customer cancel)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["status"],
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": ["pending", "confirmed", "paid", "processing", "shipped", "delivered", "cancelled"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Status updated; cancelling restores inventory" }
+        }
+      }
+    }
+  }
+}
